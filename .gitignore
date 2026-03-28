@@ -1,0 +1,28 @@
+# Dependencies
+/vendor/
+
+# Environment
+.env
+
+# Composer lock is committed — this intentionally ignores only .env
+# Remove the next line if you want to ignore composer.lock too
+# composer.lock
+
+# Session files
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+/storage/logs/
+
+# Build artefacts
+/node_modules/

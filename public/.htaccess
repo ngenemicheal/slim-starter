@@ -1,0 +1,17 @@
+Options -Indexes
+
+# Pass the Authorization header through to PHP
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+RewriteEngine On
+
+# Redirect trailing slashes (except for real directories)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI}      (.+)/$
+RewriteRule ^                   %1 [L,R=301]
+
+# Route everything to the front controller
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^                   index.php [L]
