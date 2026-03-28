@@ -1,7 +1,6 @@
-version: '3.8'
+version: "3.8"
 
 services:
-
   # ── PHP 8.3 + Apache ───────────────────────────────────────────────────────
   app:
     build:
@@ -13,7 +12,7 @@ services:
       - .:/var/www/html
       - ./docker/apache.conf:/etc/apache2/sites-enabled/000-default.conf
     ports:
-      - "8080:80"
+      - "8092:80"
     environment:
       APP_ENV: development
     depends_on:
@@ -38,7 +37,8 @@ services:
       - db_data:/var/lib/mysql
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecret"]
+      test:
+        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecret"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -51,8 +51,8 @@ services:
     container_name: slim_mailhog
     restart: unless-stopped
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI → http://localhost:8025
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI → http://wsl-local:8025
     networks:
       - slim_network
 

@@ -61,8 +61,8 @@ slim-starter/
 cp .env.example .env
 docker compose up -d
 docker compose exec app composer install
-# App: http://localhost:8080
-# Mailhog: http://localhost:8025
+# App: http://wsl-local:8092
+# Mailhog: http://wsl-local:8025
 ```
 
 The database is initialised automatically from `docker/init.sql` on first run.
@@ -263,7 +263,7 @@ class NotificationController extends Controller
 }
 ```
 
-Locally, all mail is caught by Mailhog at `http://localhost:8025`.
+Locally, all mail is caught by Mailhog at `http://wsl-local:8025`.
 
 ---
 
