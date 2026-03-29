@@ -1,0 +1,51 @@
+{% extends 'layout.twig' %}
+
+{% block content %}
+{% set user = session('user') %}
+
+<main class="page">
+
+    <h2 class="section-title" style="margin-bottom:1.5rem">
+        Welcome back, {{ user.name }}
+    </h2>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Account</div>
+            <div class="stat-value" style="font-size:1.15rem;word-break:break-all">{{ user.email }}</div>
+            <div class="stat-meta">Signed in &mdash; session active</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">User ID</div>
+            <div class="stat-value">{{ user.id }}</div>
+            <div class="stat-meta">Primary key in users table</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Role</div>
+            <div class="stat-value" style="font-size:1.4rem;text-transform:capitalize">{{ user.role }}</div>
+            <div class="stat-meta">{{ user.role == 'admin' ? 'Full admin access' : 'Standard access' }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">App Mode</div>
+            <div class="stat-value" style="font-size:1.4rem;text-transform:capitalize">
+                {{ app_env }}
+            </div>
+            <div class="stat-meta">Set via APP_ENV in .env</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Environment</div>
+        <div class="card-subtitle">Current runtime configuration</div>
+        <ul class="info-list">
+            <li><span>APP_ENV</span>             <span>{{ app_env }}</span></li>
+            <li><span>Template engine</span>     <span>Twig</span></li>
+            <li><span>API health check</span>    <span><a href="/api/health" target="_blank">/api/health</a></span></li>
+            {% if user.role == 'admin' %}
+            <li><span>Admin panel</span>         <span><a href="/admin">Go to admin &rarr;</a></span></li>
+            {% endif %}
+        </ul>
+    </div>
+
+</main>
+{% endblock %}

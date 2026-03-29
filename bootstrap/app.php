@@ -21,6 +21,7 @@ use DI\ContainerBuilder;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Slim\Factory\AppFactory;
+use Slim\Views\TwigMiddleware;
 
 // ── 1. Load .env ──────────────────────────────────────────────────────────
 // safeLoad() silently ignores a missing .env (handy when env vars are set
@@ -78,6 +79,13 @@ AppFactory::setContainer($container);
 $app = AppFactory::create();
 
 // ── 7. Middleware stack ───────────────────────────────────────────────────
+
+// Twig — must be added before routing middleware so url_for() etc. are available
+// in templates. Only loaded when using the Twig template engine.
+if (strtolower($_ENV['APP_TEMPLATE_ENGINE'] ?? 'twig') === 'twig') {
+    $app->add(TwigMiddleware::create($app, $container->get(\Slim\Views\Twig::class)));
+}
+
 // Parse application/json, application/x-www-form-urlencoded, and multipart
 $app->addBodyParsingMiddleware();
 

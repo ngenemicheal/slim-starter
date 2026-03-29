@@ -1,8 +1,8 @@
 # slim-starter — Developer Guide
 
 A minimal but complete PHP starter framework. Built on Slim 4 with Eloquent
-ORM, PHPMailer, session authentication, and input validation. Designed for
-shared hosting (cPanel) but works equally well in Docker locally.
+ORM, PHPMailer, Twig templates, session authentication, and input validation.
+Designed for shared hosting (cPanel) but works equally well in Docker locally.
 
 ---
 
@@ -11,44 +11,67 @@ shared hosting (cPanel) but works equally well in Docker locally.
 ```
 slim-starter/
 ├── app/
-│   ├── Controllers/        # Request handlers
-│   │   ├── Controller.php  # Base class (render, json, redirect helpers)
-│   │   ├── HomeController.php
-│   │   └── AuthController.php
+│   ├── Controllers/
+│   │   ├── Controller.php          # Base: render(Twig), json(), redirect()
+│   │   ├── HomeController.php      # Public landing page + user dashboard
+│   │   ├── AuthController.php      # Register / login / logout
+│   │   └── Admin/
+│   │       ├── AuthController.php  # Admin-specific login (/admin/login)
+│   │       ├── DashboardController.php
+│   │       └── UserController.php  # User CRUD (list, show, edit, delete)
+│   ├── Extensions/
+│   │   └── TwigExtension.php       # session(), flash(), current_path() + filters
 │   ├── Middleware/
-│   │   └── AuthMiddleware.php   # Redirects unauthenticated requests to /login
+│   │   ├── AuthMiddleware.php      # Redirects to /login if not authenticated
+│   │   └── AdminMiddleware.php     # Redirects to /admin/login if not admin
 │   └── Models/
-│       └── User.php             # Eloquent model backed by `users` table
+│       └── User.php                # Eloquent model: role + status constants
 ├── bootstrap/
-│   └── app.php             # Wires everything together; returns $app
+│   └── app.php                     # Wires everything together; returns $app
 ├── config/
-│   ├── app.php             # PHP-DI container definitions (services, settings)
-│   └── database.php        # Eloquent connection config
+│   ├── app.php                     # PHP-DI: Twig, PHPMailer, settings
+│   └── database.php                # Eloquent connection config
 ├── database/
-│   └── migrations/         # Plain SQL migration files — run manually
+│   ├── migrations/                 # SQL files — run in order manually
+│   │   ├── 001_create_users_table.sql
+│   │   └── 002_add_role_status_to_users.sql
+│   └── seeds/
+│       └── seed_admin.php          # Creates admin@example.com / admin123
 ├── docker/
-│   ├── Dockerfile          # PHP 8.3 + Apache image
-│   ├── apache.conf         # VirtualHost pointing at public/
-│   └── init.sql            # Auto-run on first `docker compose up`
-├── public/                 # ← cPanel document root points here
-│   ├── .htaccess           # URL rewriting for Slim
-│   ├── index.php           # Front controller
-│   └── css/app.css         # Application stylesheet
+│   ├── Dockerfile                  # PHP 8.3 + Apache
+│   ├── apache.conf                 # VirtualHost pointing at public/
+│   └── init.sql                    # Full schema, auto-run on first compose up
+├── public/                         # ← cPanel document root
+│   ├── .htaccess
+│   ├── index.php
+│   └── css/
+│       ├── app.css                 # Public stylesheet
+│       └── admin.css               # Admin panel stylesheet
 ├── routes/
-│   ├── web.php             # HTML routes (loaded in web mode)
-│   └── api.php             # JSON routes (always loaded under /api)
+│   ├── web.php                     # HTML + admin routes
+│   └── api.php                     # JSON routes under /api
 ├── storage/
-│   └── sessions/           # File-based PHP sessions (gitignored)
+│   ├── sessions/                   # File-based PHP sessions
+│   └── cache/
+│       ├── twig/                   # Compiled Twig templates (production)
+│       └── di/                     # Compiled PHP-DI container (production)
 ├── views/
-│   ├── layout/
-│   │   ├── header.php
-│   │   └── footer.php
+│   ├── base.twig                   # HTML skeleton
+│   ├── layout.twig                 # Public nav + footer
+│   ├── home.twig
+│   ├── dashboard.twig
 │   ├── auth/
-│   │   ├── login.php
-│   │   └── register.php
-│   ├── home.php
-│   └── dashboard.php
-├── .env.example            # Copy to .env and fill in values
+│   │   ├── login.twig
+│   │   └── register.twig
+│   └── admin/
+│       ├── layout.twig             # Sidebar shell for all admin pages
+│       ├── login.twig              # Standalone admin login (dark bg)
+│       ├── dashboard.twig
+│       └── users/
+│           ├── index.twig          # Paginated list + search
+│           ├── show.twig           # User detail
+│           └── edit.twig           # Edit form (name, email, role, status)
+├── .env.example
 ├── composer.json
 └── docker-compose.yml
 ```
@@ -60,12 +83,13 @@ slim-starter/
 ```bash
 cp .env.example .env
 docker compose up -d
-docker compose exec app composer install
-# App: http://wsl-local:8092
-# Mailhog: http://wsl-local:8025
+docker compose exec slim_app composer install
+# Run the admin seeder
+docker compose exec slim_app php database/seeds/seed_admin.php
+# App     → http://wsl-local:8092
+# Admin   → http://wsl-local:8092/admin
+# Mailhog → http://wsl-local:8025
 ```
-
-The database is initialised automatically from `docker/init.sql` on first run.
 
 ---
 
@@ -73,59 +97,126 @@ The database is initialised automatically from `docker/init.sql` on first run.
 
 1. Upload all files (excluding `vendor/`) to the server.
 2. Point the cPanel document root to the `public/` directory.
-3. SSH in (or use the cPanel Terminal) and run:
-   ```bash
-   composer install --no-dev --optimize-autoloader
-   ```
-   If you have no terminal, run Composer via a cPanel-provided tool or
-   pre-build the `vendor/` directory locally and upload it.
+3. Run `composer install --no-dev --optimize-autoloader` (via SSH or cPanel Terminal).
 4. Copy `.env.example` to `.env` and fill in your DB credentials.
 5. Import `database/migrations/001_create_users_table.sql` via phpMyAdmin.
-6. Make sure `storage/sessions/` is writable by the web server (`chmod 755`).
+6. Import `database/migrations/002_add_role_status_to_users.sql` via phpMyAdmin.
+7. Run the admin seeder: `php database/seeds/seed_admin.php`
+8. Make `storage/sessions/` writable: `chmod 755 storage/sessions`.
+
+---
+
+## Admin panel
+
+| URL | Description |
+|---|---|
+| `/admin/login` | Admin login (checks role = admin) |
+| `/admin` | Dashboard with user stats |
+| `/admin/users` | Paginated user list with search |
+| `/admin/users/{id}` | User detail view |
+| `/admin/users/{id}/edit` | Edit name, email, role, status |
+| `/admin/users/{id}/delete` | POST — delete user |
+
+**Default admin credentials** (created by the seeder):
+
+```
+Email:    admin@example.com
+Password: admin123
+```
+
+Change the password after first login.
+
+To promote an existing user to admin directly in MySQL:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
+```
+
+---
+
+## Templates (Twig)
+
+All views are Twig templates in `views/`. The template engine is set by
+`APP_TEMPLATE_ENGINE` in `.env` — defaults to `twig`.
+
+### Twig template hierarchy
+
+```
+base.twig          ← HTML skeleton (head, body, title block)
+└── layout.twig    ← Public pages: nav + footer
+│   └── home.twig, dashboard.twig, auth/login.twig, ...
+└── admin/layout.twig  ← Admin pages: sidebar + topbar
+    └── admin/dashboard.twig, admin/users/index.twig, ...
+```
+
+### Available Twig functions (from TwigExtension)
+
+```twig
+{{ session('user') }}        {# → $_SESSION['user'] #}
+{{ session('user').role }}   {# → 'admin' or 'user' #}
+{{ flash('success') }}       {# reads and clears $_SESSION['flash_success'] #}
+{{ current_path() }}         {# → '/admin/users' #}
+```
+
+### Available Twig filters
+
+```twig
+{{ user.created_at | date_fmt }}          {# → 'Jan 01, 2025' #}
+{{ user.created_at | date_fmt('Y-m-d') }} {# custom format #}
+{{ 'hello' | ucwords }}                   {# → 'Hello' #}
+```
+
+### Set a flash message from a controller
+
+```php
+$_SESSION['flash_success'] = 'Your changes were saved.';
+$_SESSION['flash_error']   = 'Something went wrong.';
+return $this->redirect($response, '/somewhere');
+```
+
+### Switch back to plain PHP templates
+
+```env
+APP_TEMPLATE_ENGINE=php
+```
+
+The base `Controller::render()` will look for `views/<name>.php` instead.
+The original `.php` view files are preserved alongside the `.twig` files.
 
 ---
 
 ## How to add a route
 
-### Web route (HTML response)
-
-Edit `routes/web.php`:
+**Web route** — `routes/web.php`:
 
 ```php
-// Public
 $app->get('/about', [AboutController::class, 'show']);
 
-// Protected (requires login)
+// Protected
 $app->group('', function ($group) {
-    $group->get('/profile', [ProfileController::class, 'show']);
-    $group->post('/profile', [ProfileController::class, 'update']);
+    $group->get('/settings', [SettingsController::class, 'show']);
 })->add(AuthMiddleware::class);
+
+// Admin
+$app->group('/admin', function ($group) {
+    $group->get('/reports', [ReportController::class, 'index']);
+})->add(AdminMiddleware::class);
 ```
 
-### API route (JSON response)
-
-Edit `routes/api.php` inside the existing `/api` group:
+**API route** — `routes/api.php` inside the existing `/api` group:
 
 ```php
-$group->get('/posts',       [PostController::class, 'index']);
-$group->post('/posts',      [PostController::class, 'store']);
-$group->get('/posts/{id}',  [PostController::class, 'show']);
+$group->get('/posts', [PostController::class, 'index']);
 ```
 
 ---
 
 ## How to add a controller
 
-Create `app/Controllers/PostController.php`:
-
 ```php
-<?php
-
-declare(strict_types=1);
-
+// app/Controllers/PostController.php
 namespace App\Controllers;
 
-use App\Models\Post;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -133,91 +224,37 @@ class PostController extends Controller
 {
     public function index(Request $request, Response $response): Response
     {
-        $posts = Post::latest()->get();
-        return $this->render($response, 'posts/index', compact('posts'));
-    }
-
-    public function store(Request $request, Response $response): Response
-    {
-        $body = (array) $request->getParsedBody();
-        $post = Post::create(['title' => $body['title'], 'body' => $body['body']]);
-        return $this->json($response, $post, 201);
+        return $this->render($response, 'posts/index', ['posts' => Post::all()]);
     }
 }
 ```
 
-PHP-DI autowires controllers automatically — no registration required.
+PHP-DI autowires controllers — no registration needed.
 
 ---
 
 ## How to add a model
 
-1. Create `app/Models/Post.php`:
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-
-class Post extends Model
-{
-    protected $fillable = ['title', 'body', 'user_id'];
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-}
-```
-
-2. Add `database/migrations/002_create_posts_table.sql`:
-
-```sql
-CREATE TABLE IF NOT EXISTS `posts` (
-    `id`         bigint unsigned NOT NULL AUTO_INCREMENT,
-    `user_id`    bigint unsigned NOT NULL,
-    `title`      varchar(255)    NOT NULL,
-    `body`       text            NOT NULL,
-    `created_at` timestamp       NULL DEFAULT NULL,
-    `updated_at` timestamp       NULL DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `posts_user_id_foreign` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
-3. Run the SQL via phpMyAdmin or `docker compose exec db mysql`.
+1. Create `app/Models/Post.php` extending `Illuminate\Database\Eloquent\Model`
+2. Add `database/migrations/003_create_posts_table.sql`
+3. Run the SQL via phpMyAdmin or `docker compose exec slim_db mysql -uroot -psecret slim_starter < database/migrations/003_create_posts_table.sql`
 
 ---
 
 ## How to inject a service
 
-Register it in `config/app.php`:
+Add to `config/app.php`, then type-hint in the controller constructor:
 
 ```php
-use App\Services\PostService;
+// config/app.php
+App\Services\PostService::class => \DI\autowire(),
 
-return [
-    // ...existing entries...
-
-    PostService::class => \DI\autowire(),
-
-    // Or with manual wiring:
-    PostService::class => function (ContainerInterface $c): PostService {
-        return new PostService($c->get(PHPMailer::class));
-    },
-];
-```
-
-Then type-hint it in a controller constructor:
-
-```php
-class PostController extends Controller
-{
-    public function __construct(private PostService $posts) {}
+// PostController.php
+public function __construct(
+    \Slim\Views\Twig $twig,
+    private \App\Services\PostService $posts
+) {
+    parent::__construct($twig);
 }
 ```
 
@@ -225,90 +262,43 @@ class PostController extends Controller
 
 ## How to switch APP_MODE
 
-Edit `.env`:
-
 ```env
-# Full web app (HTML views + /api/* routes)
-APP_MODE=web
-
-# Pure JSON API (only /api/* routes, JSON error responses)
-APP_MODE=api
+APP_MODE=web   # HTML views + /api/* routes
+APP_MODE=api   # JSON only, JSON error responses
 ```
-
-In `api` mode the error middleware returns JSON instead of HTML, which is
-useful when building headless backends.
-
----
-
-## How to send email
-
-Inject `PHPMailer` and use it:
-
-```php
-use PHPMailer\PHPMailer\PHPMailer;
-
-class NotificationController extends Controller
-{
-    public function __construct(private PHPMailer $mail) {}
-
-    public function send(...): Response
-    {
-        $this->mail->addAddress('user@example.com');
-        $this->mail->Subject = 'Hello!';
-        $this->mail->Body    = '<p>Welcome!</p>';
-        $this->mail->isHTML(true);
-        $this->mail->send();
-        // ...
-    }
-}
-```
-
-Locally, all mail is caught by Mailhog at `http://wsl-local:8025`.
 
 ---
 
 ## Validation cheatsheet
 
 ```php
-use Respect\Validation\Validator as v;
-
-v::stringType()->length(2, 100)->validate($name);   // string, 2–100 chars
-v::email()->validate($email);                        // valid email
-v::stringType()->length(8, null)->validate($pass);  // min 8 chars
-v::intType()->between(1, 100)->validate($qty);       // integer 1–100
-v::url()->validate($url);                            // valid URL
-v::date('Y-m-d')->validate($date);                   // date format
-v::notEmpty()->validate($value);                     // not empty
+v::stringType()->length(2, 100)->validate($name);
+v::email()->validate($email);
+v::stringType()->length(8, null)->validate($password);
+v::inArray(['user', 'admin'], true)->validate($role);
+v::url()->validate($url);
 ```
 
 ---
 
 ## Security notes
 
-- **CSRF protection** — Not included. Add `slim/csrf` for production web apps.
-- **Rate limiting** — Not included. Consider middleware or a CDN rule.
-- **SQL injection** — Eloquent parameterises all queries; you are safe as long
-  as you use the ORM or the query builder (never raw string interpolation).
-- **XSS** — All view output is wrapped in `htmlspecialchars()`. Keep it that way.
-- **Session fixation** — Mitigated: `session_regenerate_id(true)` is called on login.
-- **Password hashing** — bcrypt with cost 12 via `password_hash()`.
-
----
-
-## Adding a `.env` variable
-
-1. Add the key/default to `.env.example` (commit this).
-2. Add the key to `.env` on the server (do not commit the real `.env`).
-3. Read it anywhere with `$_ENV['MY_KEY'] ?? 'default'`.
+- **CSRF** — not included. Add `slim/csrf` for production forms.
+- **SQL injection** — Eloquent parameterises all queries. Never interpolate into raw SQL.
+- **XSS** — Twig auto-escapes all `{{ }}` output. Use `{{ value|raw }}` only for trusted HTML.
+- **Session fixation** — `session_regenerate_id(true)` called on every login.
+- **Password hashing** — bcrypt cost 12 via `password_hash()`.
+- **Admin access** — `AdminMiddleware` checks `role = 'admin'` on every request to `/admin/*`.
 
 ---
 
 ## Deployment checklist
 
-- [ ] `APP_ENV=production` and `APP_DEBUG=false` in `.env`
+- [ ] `APP_ENV=production` and `APP_DEBUG=false`
 - [ ] `APP_SECRET` is a random 32+ character string
-- [ ] `storage/sessions/` is writable and outside `public/`
-- [ ] Database credentials are correct
-- [ ] `composer install --no-dev --optimize-autoloader` has been run
-- [ ] `database/migrations/` SQL files have been imported
-- [ ] HTTPS is enabled and `cookie_secure` will be set automatically
+- [ ] `APP_TEMPLATE_ENGINE=twig`
+- [ ] `composer install --no-dev --optimize-autoloader`
+- [ ] Both SQL migrations imported
+- [ ] Admin seeder run, default password changed
+- [ ] `storage/sessions/` and `storage/cache/` are writable
+- [ ] HTTPS enabled on the domain

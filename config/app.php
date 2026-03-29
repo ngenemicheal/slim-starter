@@ -11,8 +11,10 @@
 
 declare(strict_types=1);
 
+use App\Extensions\TwigExtension;
 use PHPMailer\PHPMailer\PHPMailer;
 use Psr\Container\ContainerInterface;
+use Slim\Views\Twig;
 
 return [
 
@@ -26,8 +28,35 @@ return [
         'mode'   => strtolower($_ENV['APP_MODE'] ?? 'web'),
     ],
 
+    // ── Twig template engine ───────────────────────────────────────────────
+    // Injected automatically into every controller that extends Controller.
+    Twig::class => function (): Twig {
+        $debug     = filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $cacheDir  = APP_ROOT . '/storage/cache/twig';
+
+        // Ensure the cache directory exists (Apache / www-data must be able to write)
+        if (!$debug && !is_dir($cacheDir)) {
+            mkdir($cacheDir, 0755, true);
+        }
+
+        $twig = Twig::create(APP_ROOT . '/views', [
+            'cache'       => $debug ? false : $cacheDir,
+            'debug'       => $debug,
+            'auto_reload' => true,
+        ]);
+
+        // Custom functions and filters (session(), flash(), current_path(), etc.)
+        $twig->addExtension(new TwigExtension());
+
+        // {{ dump(...) }} available in debug mode
+        if ($debug) {
+            $twig->addExtension(new \Twig\Extension\DebugExtension());
+        }
+
+        return $twig;
+    },
+
     // ── PHPMailer ─────────────────────────────────────────────────────────
-    // Inject PHPMailer into any controller or service via type-hinted constructor.
     PHPMailer::class => function (ContainerInterface $c): PHPMailer {
         $encryption = $_ENV['MAIL_ENCRYPTION'] ?? '';
         $mail = new PHPMailer(true);
@@ -52,7 +81,6 @@ return [
     },
 
     // ── Add more service definitions here ─────────────────────────────────
-    // e.g.:
-    // App\Services\UserService::class => \DI\autowire(),
+    // App\Services\PostService::class => \DI\autowire(),
 
 ];

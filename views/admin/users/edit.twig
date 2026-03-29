@@ -1,0 +1,100 @@
+{% extends 'admin/layout.twig' %}
+
+{% block page_title %}Edit — {{ subject.name }}{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-text">
+        <h1>Edit User</h1>
+        <p>{{ subject.email }}</p>
+    </div>
+    <div style="display:flex;gap:.5rem">
+        <a href="/admin/users/{{ subject.id }}" class="btn btn-ghost btn-sm">View profile</a>
+        <a href="/admin/users" class="btn btn-ghost btn-sm">&larr; All Users</a>
+    </div>
+</div>
+
+<form method="POST" action="/admin/users/{{ subject.id }}/edit" novalidate>
+
+    <div class="form-card">
+
+        {# Name and email on one row #}
+        <div class="form-row-2">
+            <div class="form-group">
+                <label class="form-label" for="name">Full name</label>
+                <input id="name" name="name" type="text"
+                       class="form-input {{ errors.name is defined ? 'error' : '' }}"
+                       value="{{ old.name is defined ? old.name : subject.name }}"
+                       required>
+                {% if errors.name is defined %}
+                    <div class="form-error">{{ errors.name }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email address</label>
+                <input id="email" name="email" type="email"
+                       class="form-input {{ errors.email is defined ? 'error' : '' }}"
+                       value="{{ old.email is defined ? old.email : subject.email }}"
+                       required>
+                {% if errors.email is defined %}
+                    <div class="form-error">{{ errors.email }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Role and status on one row #}
+        <div class="form-row-2">
+            <div class="form-group">
+                <label class="form-label" for="role">Role</label>
+                {% set sel_role = old.role is defined ? old.role : subject.role %}
+                <select id="role" name="role"
+                        class="form-select {{ errors.role is defined ? 'error' : '' }}">
+                    <option value="user"  {{ sel_role == 'user'  ? 'selected' : '' }}>User</option>
+                    <option value="admin" {{ sel_role == 'admin' ? 'selected' : '' }}>Admin</option>
+                </select>
+                {% if errors.role is defined %}
+                    <div class="form-error">{{ errors.role }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="status">Status</label>
+                {% set sel_status = old.status is defined ? old.status : subject.status %}
+                <select id="status" name="status"
+                        class="form-select {{ errors.status is defined ? 'error' : '' }}">
+                    <option value="active"   {{ sel_status == 'active'   ? 'selected' : '' }}>Active</option>
+                    <option value="inactive" {{ sel_status == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                </select>
+                {% if errors.status is defined %}
+                    <div class="form-error">{{ errors.status }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="width:auto">
+                Save changes
+            </button>
+            <a href="/admin/users/{{ subject.id }}" class="btn btn-ghost">
+                Cancel
+            </a>
+
+            {# Prevent admins from deleting themselves from the edit page #}
+            {% set current = session('user') %}
+            {% if subject.id != current.id %}
+            <div class="form-actions-right">
+                <form method="POST" action="/admin/users/{{ subject.id }}/delete"
+                      onsubmit="return confirm('Delete {{ subject.name|replace({"'": "\\'"}) }}?')">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+</form>
+
+{% endblock %}

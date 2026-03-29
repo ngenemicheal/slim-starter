@@ -1,0 +1,116 @@
+{% extends 'admin/layout.twig' %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-text">
+        <h1>Users</h1>
+        <p>{{ total }} user{{ total != 1 ? 's' : '' }} total</p>
+    </div>
+</div>
+
+<div class="table-card">
+
+    {# ── Toolbar ──────────────────────────────────────────────────────────── #}
+    <div class="table-toolbar">
+        <form class="search-form" method="GET" action="/admin/users">
+            <input type="text" name="search" class="search-input"
+                   placeholder="Search by name or email&hellip;"
+                   value="{{ search }}"
+                   autocomplete="off">
+            <button type="submit" class="btn btn-ghost btn-sm">Search</button>
+            {% if search %}
+                <a href="/admin/users" class="btn btn-ghost btn-sm">Clear</a>
+            {% endif %}
+        </form>
+        <span class="table-meta">
+            Showing {{ users|length }} of {{ total }}
+        </span>
+    </div>
+
+    {# ── Table ────────────────────────────────────────────────────────────── #}
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th style="width:100px">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>
+                    <div class="user-cell">
+                        <div class="avatar">{{ user.name|slice(0,2)|upper }}</div>
+                        <div>
+                            <div class="user-cell-name">
+                                <a href="/admin/users/{{ user.id }}" style="text-decoration:none;color:inherit">
+                                    {{ user.name }}
+                                </a>
+                            </div>
+                            <div class="user-cell-email">{{ user.email }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
+                </td>
+                <td>
+                    <span class="badge badge-{{ user.status }}">{{ user.status }}</span>
+                </td>
+                <td style="color:var(--text-muted);white-space:nowrap">
+                    {{ user.created_at ? user.created_at|date_fmt('M d, Y') : '—' }}
+                </td>
+                <td>
+                    <div class="row-actions">
+                        <a href="/admin/users/{{ user.id }}"
+                           class="btn-icon" title="View">&#128065;</a>
+                        <a href="/admin/users/{{ user.id }}/edit"
+                           class="btn-icon" title="Edit">&#9998;</a>
+                        <form method="POST" action="/admin/users/{{ user.id }}/delete"
+                              onsubmit="return confirm('Delete {{ user.name|replace({"'": "\\'"}) }}? This cannot be undone.')">
+                            <button type="submit" class="btn-icon btn-danger" title="Delete">&#10005;</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="table-empty">
+                    {% if search %}
+                        No users match &ldquo;{{ search }}&rdquo;.
+                        <a href="/admin/users">Clear search</a>
+                    {% else %}
+                        No users found.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ── Pagination ───────────────────────────────────────────────────────── #}
+    {% if total_pages > 1 %}
+    <div class="table-footer">
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        <nav class="pagination">
+            <a href="?page={{ page - 1 }}{% if search %}&search={{ search|url_encode }}{% endif %}"
+               class="page-link {{ page <= 1 ? 'disabled' : '' }}">&laquo;</a>
+
+            {% for p in range([1, page - 2]|max, [total_pages, page + 2]|min) %}
+                <a href="?page={{ p }}{% if search %}&search={{ search|url_encode }}{% endif %}"
+                   class="page-link {{ p == page ? 'active' : '' }}">{{ p }}</a>
+            {% endfor %}
+
+            <a href="?page={{ page + 1 }}{% if search %}&search={{ search|url_encode }}{% endif %}"
+               class="page-link {{ page >= total_pages ? 'disabled' : '' }}">&raquo;</a>
+        </nav>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

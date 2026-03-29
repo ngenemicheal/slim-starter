@@ -3,21 +3,26 @@
 /**
  * Web routes — HTML responses, session-based auth.
  *
- * How to add a new route:
+ * How to add a route:
  *   $app->get('/path', [MyController::class, 'method']);
- *   $app->post('/path', [MyController::class, 'method']);
  *
- * How to protect a group of routes:
- *   $app->group('/admin', function ($group) {
- *       $group->get('/dashboard', [AdminController::class, 'index']);
- *   })->add(AuthMiddleware::class);
+ * How to protect a group:
+ *   $app->group('', function ($group) { ... })->add(AuthMiddleware::class);
+ *
+ * Admin routes live under /admin and are protected by AdminMiddleware.
+ * Admin login is public (unprotected) so unauthenticated users can reach it.
  */
 
 declare(strict_types=1);
 
+use App\Controllers\Admin\AuthController as AdminAuthController;
+use App\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Controllers\Admin\UserController as AdminUserController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
+use App\Middleware\AdminMiddleware;
 use App\Middleware\AuthMiddleware;
+use Slim\Routing\RouteCollectorProxy;
 
 /** @var \Slim\App $app */
 
@@ -30,13 +35,34 @@ $app->get('/register',  [AuthController::class, 'registerForm']);
 $app->post('/register', [AuthController::class, 'register']);
 $app->get('/logout',    [AuthController::class, 'logout']);
 
-// ── Protected routes (login required) ─────────────────────────────────────
-$app->group('', function ($group) {
+// ── Authenticated user routes ──────────────────────────────────────────────
+$app->group('', function (RouteCollectorProxy $group) {
 
     $group->get('/dashboard', [HomeController::class, 'dashboard']);
 
     // Add more protected web routes here:
     // $group->get('/profile', [ProfileController::class, 'show']);
-    // $group->post('/profile', [ProfileController::class, 'update']);
 
 })->add(AuthMiddleware::class);
+
+// ── Admin: public login (must be outside the protected group) ──────────────
+$app->get('/admin/login',  [AdminAuthController::class, 'loginForm']);
+$app->post('/admin/login', [AdminAuthController::class, 'login']);
+
+// ── Admin: protected panel ─────────────────────────────────────────────────
+$app->group('/admin', function (RouteCollectorProxy $group) {
+
+    // Dashboard
+    $group->get('',  [AdminDashboardController::class, 'index']); // GET /admin
+
+    // User CRUD
+    $group->get('/users',              [AdminUserController::class, 'index']);
+    $group->get('/users/{id:[0-9]+}',       [AdminUserController::class, 'show']);
+    $group->get('/users/{id:[0-9]+}/edit',  [AdminUserController::class, 'edit']);
+    $group->post('/users/{id:[0-9]+}/edit', [AdminUserController::class, 'update']);
+    $group->post('/users/{id:[0-9]+}/delete', [AdminUserController::class, 'destroy']);
+
+    // Add more admin routes here:
+    // $group->get('/settings', [SettingsController::class, 'show']);
+
+})->add(AdminMiddleware::class);

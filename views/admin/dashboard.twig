@@ -1,0 +1,86 @@
+{% extends 'admin/layout.twig' %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-text">
+        <h1>Dashboard</h1>
+        <p>Overview of your application.</p>
+    </div>
+</div>
+
+{# ── Stats row ──────────────────────────────────────────────────────────── #}
+<div class="stats-grid" style="margin-bottom:2rem">
+
+    <div class="stat-card">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value">{{ total_users }}</div>
+        <div class="stat-meta">All registered accounts</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">Active Users</div>
+        <div class="stat-value">{{ active_users }}</div>
+        <div class="stat-meta">Status = active</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">New This Week</div>
+        <div class="stat-value">{{ new_this_week }}</div>
+        <div class="stat-meta">Registered in last 7 days</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">Admin Users</div>
+        <div class="stat-value">{{ admin_users }}</div>
+        <div class="stat-meta">Role = admin</div>
+    </div>
+
+</div>
+
+{# ── Recent registrations ───────────────────────────────────────────────── #}
+<div class="table-card">
+    <div class="table-toolbar">
+        <span style="font-weight:600;font-size:.9375rem">Recent Registrations</span>
+        <a href="/admin/users" class="btn btn-ghost btn-sm">View all &rarr;</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in recent_users %}
+            <tr>
+                <td>
+                    <div class="user-cell">
+                        <div class="avatar">{{ user.name|slice(0,2)|upper }}</div>
+                        <div>
+                            <div class="user-cell-name">{{ user.name }}</div>
+                            <div class="user-cell-email">{{ user.email }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
+                </td>
+                <td>
+                    <span class="badge badge-{{ user.status }}">{{ user.status }}</span>
+                </td>
+                <td style="color:var(--text-muted)">
+                    {{ user.created_at ? user.created_at|date_fmt('M d, Y') : '—' }}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="table-empty">No users yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

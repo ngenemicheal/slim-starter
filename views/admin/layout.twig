@@ -1,0 +1,67 @@
+{% extends 'base.twig' %}
+
+{% block head %}
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+
+{% block body_class %}admin-page{% endblock %}
+
+{% block body %}
+{% set cp = current_path() %}
+{% set current_user = session('user') %}
+
+<div class="admin-wrapper">
+
+    {# ── Sidebar ──────────────────────────────────────────────────────────── #}
+    <aside class="admin-sidebar">
+        <div class="admin-logo">
+            <a href="/admin">{{ app_name }}</a>
+            <span class="admin-logo-badge">Admin</span>
+        </div>
+
+        <nav class="admin-nav">
+            <a href="/admin"
+               class="admin-nav-item {{ cp == '/admin' ? 'active' : '' }}">
+                &#9632; Dashboard
+            </a>
+
+            <div class="admin-nav-section">Users</div>
+            <a href="/admin/users"
+               class="admin-nav-item {{ '/admin/users' in cp ? 'active' : '' }}">
+                &#9632; All Users
+            </a>
+        </nav>
+
+        <div class="admin-sidebar-footer">
+            <a href="/" class="admin-nav-item">&#8592; Back to site</a>
+        </div>
+    </aside>
+
+    {# ── Main ─────────────────────────────────────────────────────────────── #}
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <span class="admin-breadcrumb">{% block page_title %}{{ title ?? '' }}{% endblock %}</span>
+            <div class="admin-topbar-right">
+                <span class="admin-user-chip">{{ current_user.name }}</span>
+                <a href="/logout" class="btn btn-ghost btn-sm">Logout</a>
+            </div>
+        </header>
+
+        <div class="admin-content">
+            {# Flash messages #}
+            {% set msg_success = flash('success') %}
+            {% set msg_error   = flash('error') %}
+            {% if msg_success %}
+                <div class="alert alert-success">{{ msg_success }}</div>
+            {% endif %}
+            {% if msg_error %}
+                <div class="alert alert-danger">{{ msg_error }}</div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

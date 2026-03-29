@@ -1,6 +1,6 @@
 # slim-starter
 
-A minimal but production-ready PHP starter framework built on **Slim 4**. Comes with session-based authentication, Eloquent ORM, input validation, PHPMailer, and a Docker environment wired up and ready to go. Designed for projects that will be deployed on shared hosting (cPanel) — no Docker on the server, no shell tricks, just Composer and a file upload.
+A minimal but production-ready PHP starter framework built on **Slim 4**. Comes with Twig templates, an admin panel with full user CRUD, session-based authentication, Eloquent ORM, input validation, and PHPMailer. Designed for projects that will be deployed on shared hosting (cPanel) — no Docker on the server, no shell tricks, just Composer and a file upload.
 
 Clone it, rename it, and build something.
 
@@ -9,14 +9,16 @@ Clone it, rename it, and build something.
 ## What comes out of the box
 
 - **Routing** — Slim 4 with PHP-DI container, route groups, and middleware support
+- **Twig templates** — full template inheritance, auto-escaping, custom helpers; plain PHP views still supported
 - **Database** — Eloquent ORM (the same one from Laravel) with a `User` model ready to use
-- **Authentication** — Register, login, and logout with file-based PHP sessions
+- **Authentication** — register, login, and logout with file-based PHP sessions
+- **Admin panel** — user CRUD at `/admin` with stats, search, pagination, role and status management
+- **Role system** — `role` column (`user` / `admin`) and `status` column (`active` / `inactive`) on users
 - **Input validation** — Respect/Validation for clean, chainable validation rules
 - **Email** — PHPMailer wired to `.env`; locally caught by Mailhog
 - **Two route modes** — `APP_MODE=web` for HTML apps, `APP_MODE=api` for pure JSON APIs
 - **Shared-hosting ready** — correct `.htaccess`, no shell calls, file-based sessions
 - **Docker environment** — PHP 8.3 + Apache, MySQL 8, and Mailhog in one `compose up`
-- **Clean views** — PHP templates with a self-contained stylesheet; no build tools
 
 ---
 
@@ -27,6 +29,7 @@ Clone it, rename it, and build something.
 | Router | `slim/slim` | ^4.14 |
 | PSR-7 | `slim/psr7` | ^1.7 |
 | Container | `php-di/php-di` | ^7.0 |
+| Templates | `slim/twig-view` + `twig/twig` | ^3.4 / ^3.8 |
 | ORM | `illuminate/database` | ^11.0 |
 | Mailer | `phpmailer/phpmailer` | ^6.9 |
 | Env vars | `vlucas/phpdotenv` | ^5.6 |
@@ -36,11 +39,11 @@ Clone it, rename it, and build something.
 
 ## Prerequisites
 
-| Tool | Minimum version | Notes |
-|---|---|---|
-| PHP | 8.1 | 8.2 / 8.3 recommended |
-| Composer | 2.x | [getcomposer.org](https://getcomposer.org) |
-| Docker + Compose | any recent | Local dev only |
+| Tool | Minimum version |
+|---|---|
+| PHP | 8.1 |
+| Composer | 2.x |
+| Docker + Compose | any recent (local dev only) |
 
 ---
 
@@ -51,22 +54,58 @@ Clone it, rename it, and build something.
 git clone https://github.com/ngenemicheal/slim-starter.git my-project
 cd my-project
 
-# 2. Copy and configure environment
+# 2. Copy environment file (defaults work with Docker as-is)
 cp .env.example .env
-#    Edit .env if needed — defaults work with the Docker setup as-is
 
-# 3. Start the containers
+# 3. Start containers
 docker compose up -d
 
-# 4. Install PHP dependencies inside the container
-docker compose exec app composer install
+# 4. Install dependencies
+docker compose exec slim_app composer install
 
-# 5. Open in your browser
-#    App     → http://wsl-local:8092
-#    Mailhog → http://wsl-local:8025
+# 5. Seed the admin user
+docker compose exec slim_app php database/seeds/seed_admin.php
 ```
 
-> The database and `users` table are created automatically on first run via `docker/init.sql`.
+| Service | URL |
+|---|---|
+| App | http://wsl-local:8092 |
+| Admin panel | http://wsl-local:8092/admin |
+| Mailhog | http://wsl-local:8025 |
+
+> The `users` table (with `role` and `status` columns) is created automatically from `docker/init.sql` on first `docker compose up`.
+
+---
+
+## Admin panel
+
+Sign in at **`/admin/login`** with the default credentials seeded above:
+
+```
+Email:    admin@example.com
+Password: admin123
+```
+
+**Change the password after first login.**
+
+### Admin routes
+
+| Route | Description |
+|---|---|
+| `GET /admin` | Dashboard — stats, recent registrations |
+| `GET /admin/users` | Paginated user list with search |
+| `GET /admin/users/{id}` | User detail |
+| `GET /admin/users/{id}/edit` | Edit form |
+| `POST /admin/users/{id}/edit` | Save changes (name, email, role, status) |
+| `POST /admin/users/{id}/delete` | Delete user |
+
+### Promote an existing user to admin
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
+```
+
+Or re-run the seeder after editing `database/seeds/seed_admin.php`.
 
 ---
 
@@ -76,160 +115,137 @@ docker compose exec app composer install
 slim-starter/
 ├── app/
 │   ├── Controllers/
-│   │   ├── Controller.php        # Base: render(), json(), redirect()
-│   │   ├── AuthController.php    # Register / login / logout
-│   │   └── HomeController.php    # Landing page + dashboard
+│   │   ├── Controller.php          # Base: render(), json(), redirect()
+│   │   ├── AuthController.php      # Register / login / logout
+│   │   ├── HomeController.php
+│   │   └── Admin/
+│   │       ├── AuthController.php  # /admin/login
+│   │       ├── DashboardController.php
+│   │       └── UserController.php  # CRUD
+│   ├── Extensions/
+│   │   └── TwigExtension.php       # session(), flash(), current_path(), filters
 │   ├── Middleware/
-│   │   └── AuthMiddleware.php    # Redirects unauthenticated requests to /login
+│   │   ├── AuthMiddleware.php      # Requires login
+│   │   └── AdminMiddleware.php     # Requires role = admin
 │   └── Models/
-│       └── User.php              # Eloquent model — users table
-├── bootstrap/
-│   └── app.php                   # Wires dotenv → session → Eloquent → DI → Slim
+│       └── User.php
+├── bootstrap/app.php               # Wires dotenv → session → Eloquent → DI → Slim
 ├── config/
-│   ├── app.php                   # PHP-DI container definitions
-│   └── database.php              # Eloquent connection config
+│   ├── app.php                     # DI definitions: Twig, PHPMailer, settings
+│   └── database.php
 ├── database/
-│   └── migrations/               # Plain SQL files — import via phpMyAdmin
+│   ├── migrations/                 # 001 + 002 SQL files
+│   └── seeds/seed_admin.php
 ├── docker/
-│   ├── Dockerfile                # PHP 8.3 + Apache
-│   ├── apache.conf               # VirtualHost pointing at public/
-│   └── init.sql                  # Runs once on first `docker compose up`
-├── public/                       # ← cPanel document root
-│   ├── .htaccess                 # URL rewriting for Slim
-│   ├── index.php                 # Front controller
-│   └── css/app.css               # Application stylesheet
-├── routes/
-│   ├── web.php                   # HTML routes (web mode)
-│   └── api.php                   # JSON routes under /api (always loaded)
-├── storage/
-│   └── sessions/                 # File-based sessions (gitignored)
-├── views/
-│   ├── layout/                   # header.php + footer.php partials
-│   ├── auth/                     # login.php, register.php
-│   ├── home.php
-│   └── dashboard.php
-├── .env.example
-├── composer.json
-└── docker-compose.yml
+├── public/                         # ← cPanel document root
+│   └── css/app.css + admin.css
+├── routes/web.php + api.php
+├── storage/sessions/ + cache/
+└── views/
+    ├── base.twig + layout.twig     # Template hierarchy
+    ├── home.twig, dashboard.twig
+    ├── auth/login.twig + register.twig
+    └── admin/                      # Sidebar layout + all admin views
 ```
 
 ---
 
 ## Web mode vs API mode
 
-Set `APP_MODE` in `.env`:
-
 ```env
-# Full web app — loads HTML routes (routes/web.php)
-# and JSON API routes under /api (routes/api.php)
-APP_MODE=web
-
-# Pure JSON API — loads only routes/api.php
-# Error responses are JSON, not HTML
-APP_MODE=api
+APP_MODE=web   # HTML views + /api/* routes
+APP_MODE=api   # JSON only, JSON error responses
 ```
 
-In `api` mode the error middleware automatically returns JSON instead of HTML error pages, making it suitable for headless backends and mobile app APIs.
+---
+
+## Template engine
+
+```env
+APP_TEMPLATE_ENGINE=twig   # default — uses views/*.twig
+APP_TEMPLATE_ENGINE=php    # fallback — uses views/*.php
+```
+
+Twig auto-escapes all output, so `{{ variable }}` is always XSS-safe.
+Use `{{ variable|raw }}` only for trusted HTML.
+
+### Twig helpers (TwigExtension)
+
+```twig
+{{ session('user').name }}     {# current session user #}
+{{ flash('success') }}         {# one-time flash message, cleared after read #}
+{{ current_path() }}           {# → '/admin/users' #}
+{{ user.created_at|date_fmt }} {# → 'Jan 01, 2025' #}
+```
 
 ---
 
 ## Adding a route
 
-**HTML route** — edit `routes/web.php`:
+**HTML route** — `routes/web.php`:
 
 ```php
-// Public page
 $app->get('/about', [AboutController::class, 'show']);
 
-// Protected page (requires login)
+// Protected by login
 $app->group('', function ($group) {
     $group->get('/settings', [SettingsController::class, 'show']);
-    $group->post('/settings', [SettingsController::class, 'update']);
 })->add(AuthMiddleware::class);
+
+// Admin only
+$app->group('/admin', function ($group) {
+    $group->get('/reports', [ReportController::class, 'index']);
+})->add(AdminMiddleware::class);
 ```
 
-**API endpoint** — edit `routes/api.php` inside the existing `/api` group:
+**API endpoint** — `routes/api.php` inside the existing `/api` group:
 
 ```php
-$group->get('/posts',          [PostController::class, 'index']);
-$group->post('/posts',         [PostController::class, 'store']);
-$group->get('/posts/{id}',     [PostController::class, 'show']);
-$group->put('/posts/{id}',     [PostController::class, 'update']);
-$group->delete('/posts/{id}',  [PostController::class, 'destroy']);
+$group->get('/posts',       [PostController::class, 'index']);
+$group->post('/posts',      [PostController::class, 'store']);
+$group->get('/posts/{id}',  [PostController::class, 'show']);
 ```
 
 ---
 
 ## Adding a model
 
-**1. Create the model** in `app/Models/Post.php`:
+**1.** Create `app/Models/Post.php`:
 
 ```php
-<?php
-
-declare(strict_types=1);
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 
 class Post extends Model
 {
     protected $fillable = ['title', 'body', 'user_id'];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+    public function user() { return $this->belongsTo(User::class); }
 }
 ```
 
-**2. Add the migration** in `database/migrations/002_create_posts_table.sql`:
+**2.** Add `database/migrations/003_create_posts_table.sql` and run it via phpMyAdmin or:
 
-```sql
-CREATE TABLE IF NOT EXISTS `posts` (
-    `id`         bigint unsigned NOT NULL AUTO_INCREMENT,
-    `user_id`    bigint unsigned NOT NULL,
-    `title`      varchar(255)    NOT NULL,
-    `body`       text            NOT NULL,
-    `created_at` timestamp       NULL DEFAULT NULL,
-    `updated_at` timestamp       NULL DEFAULT NULL,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```bash
+docker compose exec slim_db mysql -uroot -psecret slim_starter \
+  < database/migrations/003_create_posts_table.sql
 ```
-
-**3. Run the migration:**
-- Docker: `docker compose exec db mysql -uroot -psecret slim_starter < database/migrations/002_create_posts_table.sql`
-- Shared hosting: import via phpMyAdmin
 
 ---
 
 ## Deploying to shared hosting (cPanel)
 
-1. **Create the database** — use cPanel's MySQL Databases wizard. Note the host, database name, username, and password.
+1. **Create the database** in cPanel → MySQL Databases.
+2. **Upload files** (excluding `vendor/`) keeping the directory structure intact.
+3. **Set document root** to the `public/` subdirectory.
+4. **Install dependencies** via SSH/Terminal: `composer install --no-dev --optimize-autoloader`
+   *(No terminal? Run locally and upload the generated `vendor/` directory.)*
+5. **Configure environment** — copy `.env.example` to `.env` and fill in your values.
+6. **Import migrations** via phpMyAdmin (run `001` then `002` in order).
+7. **Seed admin** via SSH: `php database/seeds/seed_admin.php`
+8. **Set permissions**: `chmod 755 storage/sessions storage/cache`
 
-2. **Upload files** — upload everything *except* `vendor/` to your hosting account. Keep the directory structure intact.
-
-3. **Set the document root** — in cPanel, point your domain's document root to the `public/` subdirectory.
-
-4. **Install dependencies** — use the cPanel Terminal or a Composer-enabled hosting tool:
-   ```bash
-   composer install --no-dev --optimize-autoloader
-   ```
-   If no terminal is available, run `composer install` locally and upload the generated `vendor/` directory.
-
-5. **Configure the environment** — copy `.env.example` to `.env` and fill in your values. You can edit it directly in the cPanel File Manager.
-
-6. **Import the database schema** — in phpMyAdmin, select your database and import `database/migrations/001_create_users_table.sql`.
-
-7. **Set permissions** — make sure `storage/sessions/` is writable:
-   ```bash
-   chmod 755 storage/sessions
-   ```
-
-8. **Verify** — visit your domain. You should see the home page.
-
-> **Tip:** Set `APP_DEBUG=false` and `APP_ENV=production` before going live.
+> Set `APP_DEBUG=false` and `APP_ENV=production` before going live.
 
 ---
 
@@ -237,12 +253,13 @@ CREATE TABLE IF NOT EXISTS `posts` (
 
 | Variable | Default | Description |
 |---|---|---|
-| `APP_NAME` | `Slim Starter` | Displayed in the UI and emails |
+| `APP_NAME` | `Slim Starter` | Shown in the UI and emails |
 | `APP_ENV` | `development` | `development` or `production` |
-| `APP_DEBUG` | `true` | Show detailed error pages (`false` in production) |
-| `APP_URL` | `http://localhost:8092` | Full base URL of the app |
-| `APP_SECRET` | *(change this)* | Random secret for signing tokens / CSRF |
-| `APP_MODE` | `web` | `web` or `api` — controls which routes are loaded |
+| `APP_DEBUG` | `true` | Detailed error pages (`false` in production) |
+| `APP_URL` | `http://localhost:8092` | Full base URL |
+| `APP_SECRET` | *(change this)* | Random 32+ char secret |
+| `APP_MODE` | `web` | `web` or `api` |
+| `APP_TEMPLATE_ENGINE` | `twig` | `twig` or `php` |
 | `DB_DRIVER` | `mysql` | Database driver |
 | `DB_HOST` | `127.0.0.1` | Database host |
 | `DB_PORT` | `3306` | Database port |
@@ -251,21 +268,21 @@ CREATE TABLE IF NOT EXISTS `posts` (
 | `DB_PASSWORD` | `secret` | Database password |
 | `DB_CHARSET` | `utf8mb4` | Character set |
 | `DB_COLLATION` | `utf8mb4_unicode_ci` | Collation |
-| `MAIL_HOST` | `localhost` | SMTP host (`localhost` → Mailhog in Docker) |
-| `MAIL_PORT` | `1025` | SMTP port |
+| `MAIL_HOST` | `localhost` | SMTP host |
+| `MAIL_PORT` | `1025` | SMTP port (1025 = Mailhog) |
 | `MAIL_USERNAME` | *(empty)* | SMTP username |
 | `MAIL_PASSWORD` | *(empty)* | SMTP password |
-| `MAIL_ENCRYPTION` | *(empty)* | `tls` or `ssl` (leave empty for Mailhog) |
+| `MAIL_ENCRYPTION` | *(empty)* | `tls` or `ssl` |
 | `MAIL_FROM_ADDRESS` | `hello@example.com` | Default from address |
 | `MAIL_FROM_NAME` | `Slim Starter` | Default from name |
 | `SESSION_LIFETIME` | `120` | Session lifetime in minutes |
-| `SESSION_PATH` | `../storage/sessions` | Where PHP writes session files |
+| `SESSION_PATH` | `../storage/sessions` | Session file directory |
 
 ---
 
 ## Contributing
 
-Pull requests are welcome. For significant changes, open an issue first to discuss what you'd like to change. Please keep PRs focused — one feature or fix per PR.
+Pull requests are welcome. For significant changes, open an issue first to discuss what you'd like to change. Keep PRs focused — one feature or fix per PR.
 
 ---
 

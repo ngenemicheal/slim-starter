@@ -1,0 +1,77 @@
+{% extends 'admin/layout.twig' %}
+
+{% block page_title %}User &mdash; {{ subject.name }}{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-text">
+        <h1>{{ subject.name }}</h1>
+        <p>User ID #{{ subject.id }}</p>
+    </div>
+    <div style="display:flex;gap:.5rem">
+        <a href="/admin/users/{{ subject.id }}/edit" class="btn btn-ghost btn-sm">Edit</a>
+        <a href="/admin/users" class="btn btn-ghost btn-sm">&larr; All Users</a>
+    </div>
+</div>
+
+<div class="detail-grid">
+
+    <div class="detail-card">
+        <div class="detail-card-title">Account details</div>
+        <dl>
+            <div class="detail-row">
+                <dt>Name</dt>
+                <dd>{{ subject.name }}</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Email</dt>
+                <dd>{{ subject.email }}</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Role</dt>
+                <dd><span class="badge badge-{{ subject.role }}">{{ subject.role }}</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Status</dt>
+                <dd><span class="badge badge-{{ subject.status }}">{{ subject.status }}</span></dd>
+            </div>
+        </dl>
+    </div>
+
+    <div class="detail-card">
+        <div class="detail-card-title">Timestamps</div>
+        <dl>
+            <div class="detail-row">
+                <dt>Registered</dt>
+                <dd>{{ subject.created_at ? subject.created_at|date_fmt('M d, Y') : '—' }}</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Last updated</dt>
+                <dd>{{ subject.updated_at ? subject.updated_at|date_fmt('M d, Y') : '—' }}</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Email verified</dt>
+                <dd>{{ subject.email_verified_at ? subject.email_verified_at|date_fmt('M d, Y') : 'Not verified' }}</dd>
+            </div>
+        </dl>
+    </div>
+
+</div>
+
+{# ── Danger zone ─────────────────────────────────────────────────────────── #}
+{% set current = session('user') %}
+{% if subject.id != current.id %}
+<div class="detail-card" style="border-color:#fca5a5">
+    <div class="detail-card-title" style="color:var(--danger)">Danger zone</div>
+    <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem">
+        Permanently delete this user account. This action cannot be undone.
+    </p>
+    <form method="POST" action="/admin/users/{{ subject.id }}/delete"
+          onsubmit="return confirm('Delete {{ subject.name|replace({"'": "\\'"}) }}? This cannot be undone.')">
+        <button type="submit" class="btn btn-danger btn-sm">Delete user</button>
+    </form>
+</div>
+{% endif %}
+
+{% endblock %}

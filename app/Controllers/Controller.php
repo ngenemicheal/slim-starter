@@ -4,9 +4,13 @@
  * Base controller.
  *
  * Provides helpers shared by all controllers:
- *   - render()  — render a PHP view template
- *   - json()    — write a JSON response
+ *   - render()   — render a Twig (or PHP) view template
+ *   - json()     — write a JSON response
  *   - redirect() — shortcut for 302 redirects
+ *
+ * Template engine is chosen via APP_TEMPLATE_ENGINE in .env:
+ *   "twig" (default) — looks for views/<name>.twig
+ *   "php"            — looks for views/<name>.php (legacy)
  */
 
 declare(strict_types=1);
@@ -14,27 +18,32 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
+use Slim\Views\Twig;
 
 abstract class Controller
 {
     /**
-     * Render a PHP template from the views/ directory.
+     * PHP-DI injects the Twig instance automatically.
+     * Sub-classes that need extra dependencies should define their own
+     * constructor and call parent::__construct($twig).
+     */
+    public function __construct(protected Twig $twig) {}
+
+    /**
+     * Render a view template.
      *
-     * Variables in $data are extract()ed into the template scope.
+     * With Twig  (default): renders views/<name>.twig
+     * With PHP   (fallback): renders views/<name>.php
      *
      * Usage: return $this->render($response, 'auth/login', ['title' => 'Login']);
      */
     protected function render(Response $response, string $view, array $data = []): Response
     {
-        // Make all $data keys available as variables inside the template
-        extract($data, EXTR_SKIP);
+        if (strtolower($_ENV['APP_TEMPLATE_ENGINE'] ?? 'twig') !== 'twig') {
+            return $this->renderPhp($response, $view, $data);
+        }
 
-        ob_start();
-        require APP_ROOT . '/views/' . $view . '.php';
-        $html = (string) ob_get_clean();
-
-        $response->getBody()->write($html);
-        return $response->withHeader('Content-Type', 'text/html; charset=UTF-8');
+        return $this->twig->render($response, $view . '.twig', $data);
     }
 
     /**
@@ -60,5 +69,18 @@ abstract class Controller
     protected function redirect(Response $response, string $url, int $status = 302): Response
     {
         return $response->withHeader('Location', $url)->withStatus($status);
+    }
+
+    /**
+     * Legacy PHP template renderer — used when APP_TEMPLATE_ENGINE=php.
+     */
+    private function renderPhp(Response $response, string $view, array $data = []): Response
+    {
+        extract($data, EXTR_SKIP);
+        ob_start();
+        require APP_ROOT . '/views/' . $view . '.php';
+        $html = (string) ob_get_clean();
+        $response->getBody()->write($html);
+        return $response->withHeader('Content-Type', 'text/html; charset=UTF-8');
     }
 }

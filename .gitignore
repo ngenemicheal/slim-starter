@@ -12,6 +12,10 @@
 /storage/sessions/*
 !/storage/sessions/.gitkeep
 
+# Twig and DI compiled cache
+/storage/cache/twig/
+/storage/cache/di/
+
 # IDE / OS
 .idea/
 .vscode/

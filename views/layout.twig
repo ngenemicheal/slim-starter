@@ -1,0 +1,31 @@
+{% extends 'base.twig' %}
+
+{% block head %}
+    <link rel="stylesheet" href="/css/app.css">
+{% endblock %}
+
+{% block body %}
+<nav class="nav">
+    <a href="/" class="nav-brand">{{ app_name }}</a>
+    <ul class="nav-links">
+        {% if session('user') %}
+            <li><a href="/dashboard">Dashboard</a></li>
+            {% if session('user').role == 'admin' %}
+                <li><a href="/admin">Admin</a></li>
+            {% endif %}
+            <li><a href="/logout">Logout</a></li>
+        {% else %}
+            <li><a href="/login">Sign in</a></li>
+            <li><a href="/register" class="btn-nav">Get started</a></li>
+        {% endif %}
+    </ul>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer class="footer">
+    {{ app_name }} &mdash; built with
+    <a href="https://www.slimframework.com/" target="_blank" rel="noopener">Slim 4</a>
+    &amp; <a href="https://laravel.com/docs/eloquent" target="_blank" rel="noopener">Eloquent</a>
+</footer>
+{% endblock %}
