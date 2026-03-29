@@ -1,6 +1,6 @@
 -- ============================================================
--- Migration: 001 — Create users table
--- Run via: phpMyAdmin, cPanel MySQL, or docker/init.sql
+-- Migration: 001 — Create users table (with role and status)
+-- Run via: php database/migrate.php
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `users` (
@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS `users` (
     `name`              varchar(255)     NOT NULL,
     `email`             varchar(255)     NOT NULL,
     `password`          varchar(255)     NOT NULL,
+    `role`              varchar(20)      NOT NULL DEFAULT 'user',
+    `status`            varchar(20)      NOT NULL DEFAULT 'active',
     `email_verified_at` timestamp        NULL DEFAULT NULL,
     `remember_token`    varchar(100)     DEFAULT NULL,
     `created_at`        timestamp        NULL DEFAULT NULL,

@@ -7,10 +7,11 @@
  *   Email:    admin@example.com
  *   Password: admin123
  *
- * IMPORTANT: Run migration 002 before this seeder.
+ * IMPORTANT: Run migrations before this seeder:
+ *   docker compose exec app php database/migrate.php
  *
  * Usage:
- *   Docker:        docker compose exec slim_app php database/seeds/seed_admin.php
+ *   Docker:        docker compose exec app php database/seeds/seed_admin.php
  *   cPanel / SSH:  php database/seeds/seed_admin.php
  */
 

@@ -1,6 +1,6 @@
 -- Docker init: runs once when the MySQL container is first created.
--- Includes the full schema with role and status columns.
--- On shared hosting, run migrations 001 then 002 via phpMyAdmin, then run the seeder.
+-- Mirrors database/migrations/001_create_users_table.sql exactly.
+-- For all other environments, use: php database/migrate.php
 
 CREATE TABLE IF NOT EXISTS `users` (
     `id`                bigint unsigned  NOT NULL AUTO_INCREMENT,

@@ -63,8 +63,11 @@ docker compose up -d
 # 4. Install dependencies
 docker compose exec slim_app composer install
 
-# 5. Seed the admin user
-docker compose exec slim_app php database/seeds/seed_admin.php
+# 5. Run migrations (creates the database and all tables)
+docker compose exec app php database/migrate.php
+
+# 6. Seed the admin user
+docker compose exec app php database/seeds/seed_admin.php
 ```
 
 | Service | URL |
@@ -72,8 +75,6 @@ docker compose exec slim_app php database/seeds/seed_admin.php
 | App | http://wsl-local:8092 |
 | Admin panel | http://wsl-local:8092/admin |
 | Mailhog | http://wsl-local:8025 |
-
-> The `users` table (with `role` and `status` columns) is created automatically from `docker/init.sql` on first `docker compose up`.
 
 ---
 
@@ -224,11 +225,10 @@ class Post extends Model
 }
 ```
 
-**2.** Add `database/migrations/003_create_posts_table.sql` and run it via phpMyAdmin or:
+**2.** Add `database/migrations/003_create_posts_table.sql` and run:
 
 ```bash
-docker compose exec slim_db mysql -uroot -psecret slim_starter \
-  < database/migrations/003_create_posts_table.sql
+docker compose exec app php database/migrate.php
 ```
 
 ---
@@ -241,8 +241,8 @@ docker compose exec slim_db mysql -uroot -psecret slim_starter \
 4. **Install dependencies** via SSH/Terminal: `composer install --no-dev --optimize-autoloader`
    *(No terminal? Run locally and upload the generated `vendor/` directory.)*
 5. **Configure environment** — copy `.env.example` to `.env` and fill in your values.
-6. **Import migrations** via phpMyAdmin (run `001` then `002` in order).
-7. **Seed admin** via SSH: `php database/seeds/seed_admin.php`
+6. **Run migrations**: `php database/migrate.php` (creates the DB and all tables from `.env` credentials).
+7. **Seed admin**: `php database/seeds/seed_admin.php`
 8. **Set permissions**: `chmod 755 storage/sessions storage/cache`
 
 > Set `APP_DEBUG=false` and `APP_ENV=production` before going live.
