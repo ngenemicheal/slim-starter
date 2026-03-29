@@ -1,5 +1,4 @@
 services:
-  # ── PHP 8.3 + Apache ───────────────────────────────────────────────────────
   app:
     build:
       context: .
@@ -13,57 +12,29 @@ services:
       - "8092:80"
     environment:
       APP_ENV: development
-    # Fix storage permissions after the volume mounts (www-data runs Apache)
     command: >
       bash -c "
         chown -R www-data:www-data /var/www/html/storage &&
         chmod -R 755 /var/www/html/storage &&
         apache2-foreground
       "
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - slim_network
+      - dev_databases
 
-  # ── MySQL 8 ────────────────────────────────────────────────────────────────
-  db:
-    image: mysql:8.0
-    container_name: slim_db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: slim_starter
-      MYSQL_USER: slim
-      MYSQL_PASSWORD: secret
-    ports:
-      - "3308:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test:
-        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecret"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - slim_network
-
-  # ── Mailhog (catch-all SMTP for local dev) ─────────────────────────────────
   mailhog:
     image: mailhog/mailhog:latest
     container_name: slim_mailhog
     restart: unless-stopped
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI → http://wsl-local:8025
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - slim_network
-
-volumes:
-  db_data:
 
 networks:
   slim_network:
     driver: bridge
+  dev_databases:
+    external: true
+    name: dev-databases_default
