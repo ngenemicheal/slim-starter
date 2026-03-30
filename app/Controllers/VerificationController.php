@@ -60,7 +60,7 @@ class VerificationController extends Controller
             return $this->redirect($response, '/login');
         }
 
-        $user->email_verified_at = now();
+        $user->email_verified_at = date('Y-m-d H:i:s');
         $user->save();
 
         // Delete all verification tokens for this user
