@@ -80,6 +80,12 @@ return [
         return $mail;
     },
 
+    // ── Mailer wrapper ────────────────────────────────────────────────────
+    // Wraps PHPMailer with a send(to, name, subject, template, data) helper.
+    // Both PHPMailer::class and Twig::class are already in the container,
+    // so PHP-DI can autowire this with no extra configuration.
+    \App\Mail\Mailer::class => \DI\autowire(),
+
     // ── Add more service definitions here ─────────────────────────────────
     // App\Services\PostService::class => \DI\autowire(),
 

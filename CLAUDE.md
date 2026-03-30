@@ -12,68 +12,81 @@ Designed for shared hosting (cPanel) but works equally well in Docker locally.
 slim-starter/
 ├── app/
 │   ├── Controllers/
-│   │   ├── Controller.php          # Base: render(Twig), json(), redirect()
-│   │   ├── HomeController.php      # Public landing page + user dashboard
-│   │   ├── AuthController.php      # Register / login / logout
+│   │   ├── Controller.php              # Base: render(Twig), json(), redirect()
+│   │   ├── HomeController.php          # Public landing page + user dashboard
+│   │   ├── AuthController.php          # Register / login / logout
+│   │   ├── VerificationController.php  # Email verification + resend
+│   │   ├── PasswordResetController.php # Forgot / reset password
 │   │   └── Admin/
-│   │       ├── AuthController.php  # Admin-specific login (/admin/login)
+│   │       ├── AuthController.php      # Admin-specific login (/admin/login)
 │   │       ├── DashboardController.php
-│   │       └── UserController.php  # User CRUD (list, show, edit, delete)
+│   │       └── UserController.php      # User CRUD (list, show, edit, delete)
 │   ├── Extensions/
-│   │   └── TwigExtension.php       # session(), flash(), current_path() + filters
+│   │   └── TwigExtension.php           # session(), flash(), current_path() + filters
+│   ├── Mail/
+│   │   └── Mailer.php                  # PHPMailer + Twig wrapper: send(to, name, subject, template, data)
 │   ├── Middleware/
-│   │   ├── AuthMiddleware.php      # Redirects to /login if not authenticated
-│   │   └── AdminMiddleware.php     # Redirects to /admin/login if not admin
+│   │   ├── AuthMiddleware.php          # Redirects to /login if not authenticated
+│   │   ├── VerifiedMiddleware.php      # Redirects to /verify-notice if email not verified
+│   │   └── AdminMiddleware.php         # Redirects to /admin/login if not admin
 │   └── Models/
-│       └── User.php                # Eloquent model: role + status constants
+│       ├── User.php                    # Eloquent model: role + status constants
+│       ├── EmailVerification.php       # Verification tokens (user_id, token, created_at)
+│       └── PasswordReset.php           # Reset tokens (email, token, created_at)
 ├── bootstrap/
-│   └── app.php                     # Wires everything together; returns $app
+│   └── app.php                         # Wires everything together; returns $app
 ├── config/
-│   ├── app.php                     # PHP-DI: Twig, PHPMailer, settings
-│   └── database.php                # Eloquent connection config
+│   ├── app.php                         # PHP-DI: Twig, PHPMailer, Mailer, settings
+│   └── database.php                    # Eloquent connection config
 ├── database/
-│   ├── migrations/                 # SQL files — run in order manually
+│   ├── migrations/                     # SQL files — run in order by migrate.php
 │   │   ├── 001_create_users_table.sql
-│   │   └── 002_add_role_status_to_users.sql
+│   │   ├── 003_create_email_verifications_table.sql
+│   │   └── 004_create_password_resets_table.sql
 │   └── seeds/
-│       └── seed_admin.php          # Creates admin@example.com / admin123
+│       └── seed_admin.php              # Creates admin@example.com / admin123 (pre-verified)
 ├── docker/
-│   ├── Dockerfile                  # PHP 8.3 + Apache
-│   ├── apache.conf                 # VirtualHost pointing at public/
-│   └── init.sql                    # Full schema, auto-run on first compose up
-├── public/                         # ← cPanel document root
+│   ├── Dockerfile                      # PHP 8.3 + Apache
+│   ├── apache.conf                     # VirtualHost pointing at public/
+│   └── init.sql                        # Full schema (all 3 tables), auto-run on first compose up
+├── public/                             # ← cPanel document root
 │   ├── .htaccess
 │   ├── index.php
 │   └── css/
-│       ├── app.css                 # Public stylesheet
-│       └── admin.css               # Admin panel stylesheet
+│       ├── app.css                     # Public stylesheet
+│       └── admin.css                   # Admin panel stylesheet
 ├── routes/
-│   ├── web.php                     # HTML + admin routes
-│   └── api.php                     # JSON routes under /api
+│   ├── web.php                         # HTML + admin routes
+│   └── api.php                         # JSON routes under /api
 ├── storage/
-│   ├── sessions/                   # File-based PHP sessions
+│   ├── sessions/                       # File-based PHP sessions
 │   └── cache/
-│       ├── twig/                   # Compiled Twig templates (production)
-│       └── di/                     # Compiled PHP-DI container (production)
-├── views/
-│   ├── base.twig                   # HTML skeleton
-│   ├── layout.twig                 # Public nav + footer
-│   ├── home.twig
-│   ├── dashboard.twig
-│   ├── auth/
-│   │   ├── login.twig
-│   │   └── register.twig
-│   └── admin/
-│       ├── layout.twig             # Sidebar shell for all admin pages
-│       ├── login.twig              # Standalone admin login (dark bg)
-│       ├── dashboard.twig
-│       └── users/
-│           ├── index.twig          # Paginated list + search
-│           ├── show.twig           # User detail
-│           └── edit.twig           # Edit form (name, email, role, status)
-├── .env.example
-├── composer.json
-└── docker-compose.yml
+│       ├── twig/                       # Compiled Twig templates (production)
+│       └── di/                         # Compiled PHP-DI container (production)
+└── views/
+    ├── base.twig                        # HTML skeleton
+    ├── layout.twig                      # Public nav + footer
+    ├── home.twig
+    ├── dashboard.twig
+    ├── emails/
+    │   ├── base.twig                    # HTML email layout (table-based, inline CSS)
+    │   ├── welcome-verify.twig          # Sent on registration with verification link
+    │   ├── login-notification.twig      # Sent on each successful login
+    │   └── reset-password.twig          # Sent when password reset is requested
+    ├── auth/
+    │   ├── login.twig
+    │   ├── register.twig
+    │   ├── verify-notice.twig           # "Check your email" page after registration
+    │   ├── forgot-password.twig
+    │   └── reset-password.twig
+    └── admin/
+        ├── layout.twig                  # Sidebar shell for all admin pages
+        ├── login.twig
+        ├── dashboard.twig
+        └── users/
+            ├── index.twig
+            ├── show.twig
+            └── edit.twig
 ```
 
 ---
@@ -84,7 +97,7 @@ slim-starter/
 cp .env.example .env
 docker compose up -d
 docker compose exec slim_app composer install
-# Run the admin seeder
+docker compose exec slim_app php database/migrate.php
 docker compose exec slim_app php database/seeds/seed_admin.php
 # App     → http://wsl-local:8092
 # Admin   → http://wsl-local:8092/admin
@@ -98,11 +111,72 @@ docker compose exec slim_app php database/seeds/seed_admin.php
 1. Upload all files (excluding `vendor/`) to the server.
 2. Point the cPanel document root to the `public/` directory.
 3. Run `composer install --no-dev --optimize-autoloader` (via SSH or cPanel Terminal).
-4. Copy `.env.example` to `.env` and fill in your DB credentials.
-5. Import `database/migrations/001_create_users_table.sql` via phpMyAdmin.
-6. Import `database/migrations/002_add_role_status_to_users.sql` via phpMyAdmin.
-7. Run the admin seeder: `php database/seeds/seed_admin.php`
-8. Make `storage/sessions/` writable: `chmod 755 storage/sessions`.
+4. Copy `.env.example` to `.env` and fill in your DB credentials and SMTP settings.
+5. Run migrations: `php database/migrate.php`
+6. Run the admin seeder: `php database/seeds/seed_admin.php`
+7. Make `storage/sessions/` and `storage/cache/` writable: `chmod -R 755 storage/`
+
+---
+
+## Email system
+
+### Mailer wrapper
+
+`App\Mail\Mailer` wraps PHPMailer with a single method:
+
+```php
+$this->mailer->send(
+    'recipient@example.com',
+    'Recipient Name',
+    'Email Subject',
+    'emails/template-name',   // relative to views/, no extension
+    ['key' => 'value']        // Twig template variables
+);
+```
+
+Inject it into any controller:
+
+```php
+public function __construct(Twig $twig, private Mailer $mailer)
+{
+    parent::__construct($twig);
+}
+```
+
+### Email templates
+
+All templates extend `views/emails/base.twig` and override `{% block body %}`.
+The base layout provides: header with app name, body area, footer with year.
+
+Available base template variables: `app_name`, `app_url`.
+
+### Email flows
+
+| Trigger | Template | Notes |
+|---|---|---|
+| Registration | `emails/welcome-verify` | Contains verification link; expires 24 h |
+| Login | `emails/login-notification` | Includes time + IP; wrapped in try/catch |
+| Forgot password | `emails/reset-password` | Token expires in 60 minutes |
+
+### Verification flow
+
+1. User registers → `email_verified_at` is `null` → session `email_verified_at` is `null`
+2. Redirected to `/verify-notice` (shown for both unverified and just-registered)
+3. Clicks link in email → `GET /verify/{token}` → `email_verified_at` set → redirected to `/dashboard`
+4. `/verify/resend` is rate-limited to one resend per 5 minutes per user
+5. `/dashboard` is behind `VerifiedMiddleware` — unverified users are bounced to `/verify-notice`
+
+### Password reset flow
+
+1. User submits `/forgot-password` → token stored in `password_resets`, email sent
+2. Token is valid for **60 minutes**; rate-limited to one request per 5 minutes
+3. `/reset-password/{token}` form validates min 8 chars + confirmation match
+4. After reset, token is deleted and user is redirected to `/login`
+
+### Admin accounts and email verification
+
+The seeder sets `email_verified_at = NOW()` on the admin user so it bypasses the
+verification gate. Admin routes (`/admin/*`) do **not** go through `VerifiedMiddleware`.
 
 ---
 
@@ -126,10 +200,39 @@ Password: admin123
 
 Change the password after first login.
 
-To promote an existing user to admin directly in MySQL:
+---
 
-```sql
-UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
+## Auth routes
+
+| Route | Controller method | Auth required |
+|---|---|---|
+| `GET /login` | `AuthController::loginForm` | — |
+| `POST /login` | `AuthController::login` | — |
+| `GET /register` | `AuthController::registerForm` | — |
+| `POST /register` | `AuthController::register` | — |
+| `GET /logout` | `AuthController::logout` | — |
+| `GET /verify-notice` | `VerificationController::notice` | session only |
+| `GET /verify/{token}` | `VerificationController::verify` | — |
+| `POST /verify/resend` | `VerificationController::resend` | session only |
+| `GET /forgot-password` | `PasswordResetController::forgotForm` | — |
+| `POST /forgot-password` | `PasswordResetController::forgot` | — |
+| `GET /reset-password/{token}` | `PasswordResetController::resetForm` | — |
+| `POST /reset-password/{token}` | `PasswordResetController::reset` | — |
+
+---
+
+## Middleware
+
+| Middleware | Protects | Redirects to |
+|---|---|---|
+| `AuthMiddleware` | Requires a valid session | `/login` |
+| `VerifiedMiddleware` | Requires `email_verified_at` in session | `/verify-notice` |
+| `AdminMiddleware` | Requires `role = admin` | `/admin/login` |
+
+Middleware is applied LIFO in Slim 4. For the dashboard group:
+```php
+->add(VerifiedMiddleware::class)->add(AuthMiddleware::class)
+// AuthMiddleware runs first (outermost), then VerifiedMiddleware
 ```
 
 ---
@@ -142,11 +245,15 @@ All views are Twig templates in `views/`. The template engine is set by
 ### Twig template hierarchy
 
 ```
-base.twig          ← HTML skeleton (head, body, title block)
-└── layout.twig    ← Public pages: nav + footer
-│   └── home.twig, dashboard.twig, auth/login.twig, ...
+base.twig              ← HTML skeleton
+└── layout.twig        ← Public pages: nav + footer
+│   └── home.twig, dashboard.twig, auth/*.twig
 └── admin/layout.twig  ← Admin pages: sidebar + topbar
-    └── admin/dashboard.twig, admin/users/index.twig, ...
+    └── admin/dashboard.twig, admin/users/*.twig
+emails/base.twig       ← HTML email skeleton (standalone, table-based)
+└── emails/welcome-verify.twig
+└── emails/login-notification.twig
+└── emails/reset-password.twig
 ```
 
 ### Available Twig functions (from TwigExtension)
@@ -174,15 +281,6 @@ $_SESSION['flash_error']   = 'Something went wrong.';
 return $this->redirect($response, '/somewhere');
 ```
 
-### Switch back to plain PHP templates
-
-```env
-APP_TEMPLATE_ENGINE=php
-```
-
-The base `Controller::render()` will look for `views/<name>.php` instead.
-The original `.php` view files are preserved alongside the `.twig` files.
-
 ---
 
 ## How to add a route
@@ -192,10 +290,10 @@ The original `.php` view files are preserved alongside the `.twig` files.
 ```php
 $app->get('/about', [AboutController::class, 'show']);
 
-// Protected
+// Protected (auth + verified)
 $app->group('', function ($group) {
     $group->get('/settings', [SettingsController::class, 'show']);
-})->add(AuthMiddleware::class);
+})->add(VerifiedMiddleware::class)->add(AuthMiddleware::class);
 
 // Admin
 $app->group('/admin', function ($group) {
@@ -236,8 +334,8 @@ PHP-DI autowires controllers — no registration needed.
 ## How to add a model
 
 1. Create `app/Models/Post.php` extending `Illuminate\Database\Eloquent\Model`
-2. Add `database/migrations/003_create_posts_table.sql`
-3. Run the SQL via phpMyAdmin or `docker compose exec slim_db mysql -uroot -psecret slim_starter < database/migrations/003_create_posts_table.sql`
+2. Add `database/migrations/005_create_posts_table.sql`
+3. Run: `php database/migrate.php` (or `docker compose exec slim_app php database/migrate.php`)
 
 ---
 
@@ -256,15 +354,6 @@ public function __construct(
 ) {
     parent::__construct($twig);
 }
-```
-
----
-
-## How to switch APP_MODE
-
-```env
-APP_MODE=web   # HTML views + /api/* routes
-APP_MODE=api   # JSON only, JSON error responses
 ```
 
 ---
@@ -289,6 +378,8 @@ v::url()->validate($url);
 - **Session fixation** — `session_regenerate_id(true)` called on every login.
 - **Password hashing** — bcrypt cost 12 via `password_hash()`.
 - **Admin access** — `AdminMiddleware` checks `role = 'admin'` on every request to `/admin/*`.
+- **Email enumeration** — `forgot-password` always shows the same confirmation message.
+- **Token security** — `bin2hex(random_bytes(32))` produces 64-char hex tokens.
 
 ---
 
@@ -296,9 +387,11 @@ v::url()->validate($url);
 
 - [ ] `APP_ENV=production` and `APP_DEBUG=false`
 - [ ] `APP_SECRET` is a random 32+ character string
+- [ ] `APP_URL` set to the live domain (used in email links)
 - [ ] `APP_TEMPLATE_ENGINE=twig`
 - [ ] `composer install --no-dev --optimize-autoloader`
-- [ ] Both SQL migrations imported
+- [ ] `php database/migrate.php` run (creates all tables)
 - [ ] Admin seeder run, default password changed
+- [ ] SMTP credentials configured in `.env`
 - [ ] `storage/sessions/` and `storage/cache/` are writable
 - [ ] HTTPS enabled on the domain

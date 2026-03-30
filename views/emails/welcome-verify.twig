@@ -1,0 +1,17 @@
+{% extends 'emails/base.twig' %}
+
+{% block subject %}Verify your email address{% endblock %}
+
+{% block body %}
+<h1>Welcome, {{ user.name }}!</h1>
+<p>Thanks for signing up. Please verify your email address to get started.</p>
+<p>Click the button below — this link expires in 24 hours.</p>
+
+<a href="{{ verify_url }}" class="btn">Verify Email Address</a>
+
+<hr class="divider">
+
+<p class="small">If the button doesn't work, copy and paste this URL into your browser:</p>
+<p class="small">{{ verify_url }}</p>
+<p class="small">If you didn't create an account, you can safely ignore this email.</p>
+{% endblock %}

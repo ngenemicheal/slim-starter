@@ -42,10 +42,11 @@ $name     = 'Admin';
 $existing = User::where('email', $email)->first();
 
 $data = [
-    'name'     => $name,
-    'password' => password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]),
-    'role'     => User::ROLE_ADMIN,
-    'status'   => User::STATUS_ACTIVE,
+    'name'              => $name,
+    'password'          => password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]),
+    'role'              => User::ROLE_ADMIN,
+    'status'            => User::STATUS_ACTIVE,
+    'email_verified_at' => date('Y-m-d H:i:s'),
 ];
 
 if ($existing) {

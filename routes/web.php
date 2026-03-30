@@ -20,8 +20,11 @@ use App\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Controllers\Admin\UserController as AdminUserController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
+use App\Controllers\PasswordResetController;
+use App\Controllers\VerificationController;
 use App\Middleware\AdminMiddleware;
 use App\Middleware\AuthMiddleware;
+use App\Middleware\VerifiedMiddleware;
 use Slim\Routing\RouteCollectorProxy;
 
 /** @var \Slim\App $app */
@@ -35,7 +38,20 @@ $app->get('/register',  [AuthController::class, 'registerForm']);
 $app->post('/register', [AuthController::class, 'register']);
 $app->get('/logout',    [AuthController::class, 'logout']);
 
-// ── Authenticated user routes ──────────────────────────────────────────────
+// ── Email verification ──────────────────────────────────────────────────────
+$app->get('/verify-notice',       [VerificationController::class, 'notice']);
+$app->post('/verify/resend',      [VerificationController::class, 'resend']);
+$app->get('/verify/{token:[a-f0-9]{64}}', [VerificationController::class, 'verify']);
+
+// ── Forgot / reset password ────────────────────────────────────────────────
+$app->get('/forgot-password',               [PasswordResetController::class, 'forgotForm']);
+$app->post('/forgot-password',              [PasswordResetController::class, 'forgot']);
+$app->get('/reset-password/{token:[a-f0-9]{64}}',  [PasswordResetController::class, 'resetForm']);
+$app->post('/reset-password/{token:[a-f0-9]{64}}', [PasswordResetController::class, 'reset']);
+
+// ── Authenticated + verified user routes ───────────────────────────────────
+// Middleware runs LIFO: AuthMiddleware is outermost (runs first),
+// VerifiedMiddleware is innermost (runs after auth is confirmed).
 $app->group('', function (RouteCollectorProxy $group) {
 
     $group->get('/dashboard', [HomeController::class, 'dashboard']);
@@ -43,7 +59,7 @@ $app->group('', function (RouteCollectorProxy $group) {
     // Add more protected web routes here:
     // $group->get('/profile', [ProfileController::class, 'show']);
 
-})->add(AuthMiddleware::class);
+})->add(VerifiedMiddleware::class)->add(AuthMiddleware::class);
 
 // ── Admin: public login (must be outside the protected group) ──────────────
 $app->get('/admin/login',  [AdminAuthController::class, 'loginForm']);

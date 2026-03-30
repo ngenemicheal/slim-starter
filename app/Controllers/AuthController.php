@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Mail\Mailer;
 use App\Models\User;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Respect\Validation\Validator as v;
+use Slim\Views\Twig;
 
 class AuthController extends Controller
 {
+    public function __construct(Twig $twig, private Mailer $mailer)
+    {
+        parent::__construct($twig);
+    }
+
     // ── Register ───────────────────────────────────────────────────────────
 
     /**
@@ -18,7 +25,6 @@ class AuthController extends Controller
      */
     public function registerForm(Request $request, Response $response): Response
     {
-        // Already logged in — bounce to dashboard
         if (!empty($_SESSION['user'])) {
             return $this->redirect($response, '/dashboard');
         }
@@ -39,7 +45,6 @@ class AuthController extends Controller
 
         $errors = $this->validateRegistration($name, $email, $password);
 
-        // Re-render form with errors
         if (!empty($errors)) {
             return $this->render($response, 'auth/register', [
                 'title'  => 'Create Account',
@@ -56,7 +61,15 @@ class AuthController extends Controller
 
         $this->startUserSession($user);
 
-        return $this->redirect($response, '/dashboard');
+        // Send verification email
+        try {
+            $verificationController = new VerificationController($this->twig, $this->mailer);
+            $verificationController->sendVerificationEmail($user);
+        } catch (\Throwable) {
+            // Don't block registration if email fails
+        }
+
+        return $this->redirect($response, '/verify-notice');
     }
 
     // ── Login ──────────────────────────────────────────────────────────────
@@ -95,7 +108,6 @@ class AuthController extends Controller
             $user = User::where('email', $email)->first();
 
             if (!$user || !$user->verifyPassword($password)) {
-                // Use a generic message to avoid leaking whether the email exists
                 $errors['general'] = 'The credentials you entered are incorrect.';
             }
         }
@@ -111,7 +123,32 @@ class AuthController extends Controller
         /** @var User $user */
         $this->startUserSession($user);
 
-        return $this->redirect($response, '/dashboard');
+        // Send login notification (non-blocking)
+        try {
+            $ip        = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $loginTime = date('M d, Y \a\t g:i A T');
+
+            $this->mailer->send(
+                $user->email,
+                $user->name,
+                'New sign-in to your account',
+                'emails/login-notification',
+                [
+                    'user'       => $user,
+                    'login_time' => $loginTime,
+                    'ip_address' => $ip,
+                    'app_name'   => $_ENV['APP_NAME'] ?? 'Slim Starter',
+                    'app_url'    => $_ENV['APP_URL']  ?? '',
+                ]
+            );
+        } catch (\Throwable) {
+            // Login must never fail due to an email error
+        }
+
+        $redirect = $_SESSION['redirect_after_login'] ?? '/dashboard';
+        unset($_SESSION['redirect_after_login']);
+
+        return $this->redirect($response, $redirect);
     }
 
     // ── Logout ─────────────────────────────────────────────────────────────
@@ -166,14 +203,14 @@ class AuthController extends Controller
 
     private function startUserSession(User $user): void
     {
-        // Regenerate session ID to prevent session fixation attacks
         session_regenerate_id(true);
 
         $_SESSION['user'] = [
-            'id'    => $user->id,
-            'name'  => $user->name,
-            'email' => $user->email,
-            'role'  => $user->role,
+            'id'                => $user->id,
+            'name'              => $user->name,
+            'email'             => $user->email,
+            'role'              => $user->role,
+            'email_verified_at' => $user->email_verified_at ? (string) $user->email_verified_at : null,
         ];
     }
 }

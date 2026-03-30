@@ -1,0 +1,31 @@
+{% extends 'layout.twig' %}
+
+{% block content %}
+<div class="page-narrow">
+    <div class="card">
+
+        <div class="card-title">Check your email</div>
+        <div class="card-subtitle">We sent a verification link to <strong>{{ email }}</strong>.</div>
+
+        {% if flash('success') %}
+            <div class="alert alert-success">{{ flash('success') }}</div>
+        {% endif %}
+        {% if flash('error') %}
+            <div class="alert alert-danger">{{ flash('error') }}</div>
+        {% endif %}
+
+        <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 20px">
+            Click the link in the email to activate your account. Check your spam folder if you don't see it within a few minutes.
+        </p>
+
+        <form method="POST" action="/verify/resend">
+            <button type="submit" class="btn btn-ghost">Resend verification email</button>
+        </form>
+
+        <div class="auth-footer">
+            Wrong account? <a href="/logout">Sign out</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

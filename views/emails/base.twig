@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block subject %}{% endblock %}</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .wrapper { width: 100%; background-color: #f4f4f5; padding: 40px 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .header { background-color: #4f46e5; padding: 32px 40px; text-align: center; }
+        .header a { color: #ffffff; font-size: 20px; font-weight: 700; text-decoration: none; letter-spacing: -0.5px; }
+        .body { padding: 40px; }
+        .body h1 { margin: 0 0 16px; font-size: 22px; font-weight: 700; color: #111827; }
+        .body p { margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #374151; }
+        .body p:last-child { margin-bottom: 0; }
+        .btn { display: inline-block; margin: 24px 0; padding: 14px 28px; background-color: #4f46e5; color: #ffffff !important; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; }
+        .divider { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
+        .small { font-size: 13px; color: #6b7280; }
+        .footer { background-color: #f9fafb; padding: 24px 40px; text-align: center; border-top: 1px solid #e5e7eb; }
+        .footer p { margin: 0; font-size: 13px; color: #6b7280; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <table class="container" width="600" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto">
+        <tr>
+            <td class="header">
+                <a href="{{ app_url ?? '#' }}">{{ app_name ?? 'Slim Starter' }}</a>
+            </td>
+        </tr>
+        <tr>
+            <td class="body">
+                {% block body %}{% endblock %}
+            </td>
+        </tr>
+        <tr>
+            <td class="footer">
+                <p>&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Slim Starter' }}. All rights reserved.</p>
+            </td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>

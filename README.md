@@ -12,10 +12,13 @@ Clone it, rename it, and build something.
 - **Twig templates** — full template inheritance, auto-escaping, custom helpers; plain PHP views still supported
 - **Database** — Eloquent ORM (the same one from Laravel) with a `User` model ready to use
 - **Authentication** — register, login, and logout with file-based PHP sessions
+- **Email verification** — token-based verification on registration with resend support
+- **Forgot password** — secure reset flow with 60-minute expiring tokens
+- **Login notifications** — email sent on each successful login with time and IP
 - **Admin panel** — user CRUD at `/admin` with stats, search, pagination, role and status management
 - **Role system** — `role` column (`user` / `admin`) and `status` column (`active` / `inactive`) on users
 - **Input validation** — Respect/Validation for clean, chainable validation rules
-- **Email** — PHPMailer wired to `.env`; locally caught by Mailhog
+- **Email** — PHPMailer wired to `.env`; locally caught by Mailhog; HTML email templates built on Twig
 - **Two route modes** — `APP_MODE=web` for HTML apps, `APP_MODE=api` for pure JSON APIs
 - **Shared-hosting ready** — correct `.htaccess`, no shell calls, file-based sessions
 - **Docker environment** — PHP 8.3 + Apache, MySQL 8, and Mailhog in one `compose up`
@@ -64,10 +67,10 @@ docker compose up -d
 docker compose exec slim_app composer install
 
 # 5. Run migrations (creates the database and all tables)
-docker compose exec app php database/migrate.php
+docker compose exec slim_app php database/migrate.php
 
 # 6. Seed the admin user
-docker compose exec app php database/seeds/seed_admin.php
+docker compose exec slim_app php database/seeds/seed_admin.php
 ```
 
 | Service | URL |
@@ -100,6 +103,18 @@ Password: admin123
 | `POST /admin/users/{id}/edit` | Save changes (name, email, role, status) |
 | `POST /admin/users/{id}/delete` | Delete user |
 
+### Auth routes
+
+| Route | Description |
+|---|---|
+| `GET /verify-notice` | "Check your email" page shown after registration |
+| `GET /verify/{token}` | Verifies email and activates account |
+| `POST /verify/resend` | Resends verification email (rate-limited: 1 per 5 min) |
+| `GET /forgot-password` | Forgot password form |
+| `POST /forgot-password` | Sends reset link if email is registered |
+| `GET /reset-password/{token}` | Password reset form (token valid for 60 min) |
+| `POST /reset-password/{token}` | Saves new password and invalidates token |
+
 ### Promote an existing user to admin
 
 ```sql
@@ -116,26 +131,33 @@ Or re-run the seeder after editing `database/seeds/seed_admin.php`.
 slim-starter/
 ├── app/
 │   ├── Controllers/
-│   │   ├── Controller.php          # Base: render(), json(), redirect()
-│   │   ├── AuthController.php      # Register / login / logout
+│   │   ├── Controller.php              # Base: render(), json(), redirect()
+│   │   ├── AuthController.php          # Register / login / logout
+│   │   ├── VerificationController.php  # Email verification + resend
+│   │   ├── PasswordResetController.php # Forgot / reset password
 │   │   ├── HomeController.php
 │   │   └── Admin/
-│   │       ├── AuthController.php  # /admin/login
+│   │       ├── AuthController.php      # /admin/login
 │   │       ├── DashboardController.php
-│   │       └── UserController.php  # CRUD
+│   │       └── UserController.php      # CRUD
 │   ├── Extensions/
-│   │   └── TwigExtension.php       # session(), flash(), current_path(), filters
+│   │   └── TwigExtension.php           # session(), flash(), current_path(), filters
+│   ├── Mail/
+│   │   └── Mailer.php                  # PHPMailer + Twig wrapper
 │   ├── Middleware/
-│   │   ├── AuthMiddleware.php      # Requires login
-│   │   └── AdminMiddleware.php     # Requires role = admin
+│   │   ├── AuthMiddleware.php          # Requires login
+│   │   ├── VerifiedMiddleware.php      # Requires email_verified_at
+│   │   └── AdminMiddleware.php         # Requires role = admin
 │   └── Models/
-│       └── User.php
-├── bootstrap/app.php               # Wires dotenv → session → Eloquent → DI → Slim
+│       ├── User.php
+│       ├── EmailVerification.php
+│       └── PasswordReset.php
+├── bootstrap/app.php                   # Wires dotenv → session → Eloquent → DI → Slim
 ├── config/
-│   ├── app.php                     # DI definitions: Twig, PHPMailer, settings
+│   ├── app.php                         # DI definitions: Twig, PHPMailer, Mailer, settings
 │   └── database.php
 ├── database/
-│   ├── migrations/                 # 001 + 002 SQL files
+│   ├── migrations/                     # 001 + 003 + 004 SQL files
 │   └── seeds/seed_admin.php
 ├── docker/
 ├── public/                         # ← cPanel document root
@@ -145,7 +167,8 @@ slim-starter/
 └── views/
     ├── base.twig + layout.twig     # Template hierarchy
     ├── home.twig, dashboard.twig
-    ├── auth/login.twig + register.twig
+    ├── auth/                       # login, register, verify-notice, forgot/reset-password
+    ├── emails/                     # HTML email templates (welcome-verify, login-notification, reset-password)
     └── admin/                      # Sidebar layout + all admin views
 ```
 
